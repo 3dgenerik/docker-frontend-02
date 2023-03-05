@@ -1,0 +1,9 @@
+sudo: required
+servicer:
+  - docker
+
+before_install:
+  - docker build -f Dockerfile.dev -t milesoda/docker-frontend-02 .
+
+script:
+  - docker run -e CI=true milesoda/docker-frontend-02 npm run test -- --coverage
