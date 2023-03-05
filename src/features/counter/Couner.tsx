@@ -10,6 +10,7 @@ interface ICounterProps{
 export const Counter: React.FC<ICounterProps> = ({by}) => {
     const {num} = useAppSelector((state:rootState) => state.counter)
     const dispatch = useAppDispatch()
+
     return(
         <>
             <p className = 'display-1'>{num}</p>

@@ -15,7 +15,7 @@ export const User: React.FC = () => {
 
   useEffect(() => {
     dispatch(fetchUsersPadding('https://jsonplaceholder.typicode.com/users'));
-  }, []);
+  }, [dispatch]);
 
   const getNames = users
     .slice(0, num)

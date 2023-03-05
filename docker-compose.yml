@@ -1,0 +1,42 @@
+# Ovo ispod je isto kao ovo:
+
+# docker build -f Dockerfile.dev -t milesoda/web .
+# docker run -p 3000:3000 -v /app/node_module -v ${PWD}:/app milesoda/web
+
+# ovo je bilerplate
+version: '3'
+services:
+  # naziv servisa (bilo koje ime). Image ce se zvati <naziv_projekta-web>. Recimo: docker-frontend-02-web
+  web:
+    # ako hocemo za build da koristimo specifican fajl, kao recimo Dockerfile.dev, onda moramo ovako
+    build:
+      # odakle da pokupimo fajlove. U ovom slucaju iz root dir projekta. Ili ako trazimo specifican folder onda napisemo sam ime foldera
+      context: .
+      # nadji doker fajl po imenu
+      dockerfile: Dockerfile.dev
+    ports:
+      - "3000:3000"
+    volumes:
+      # prvi -v flag. Posto nemamo node_modules ui projektu, ova linija koda bookmarkuje,
+      # odnosno pokazuje na node_modules u containeru koji je vec instaliran posle builda
+      - /app/node_modules
+      # drugi -v flag reference do svih fajlova i foldera u root dir (pwd)
+      - .:/app
+  tests:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    volumes:
+      - /app/node_modules
+      - .:/app
+    # overwrite existing commands ["npm", "run", "start"]
+    command: ["npm", "run", "test"]
+  # ovo bi trebalo da je poseban kontejner zato sto build radimo na kraju
+  # dok ne zavrismo app u dev modu.
+  # builder:
+  #   build: .
+  #   ports:
+  #     - "8080:80"
+  #   volumes:
+  #     - /app/node_modules
+  #     - .:/app
