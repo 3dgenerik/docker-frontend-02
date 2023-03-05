@@ -1,46 +1,157 @@
-# Getting Started with Create React App
+//create docker file
+Dockerfile
+-----------------------------------------------------------
+# Use an existing docker image as a base
+FROM alpine
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app), using the [Redux](https://redux.js.org/) and [Redux Toolkit](https://redux-toolkit.js.org/) TS template.
+# Download and install a dependency
+RUN apk add --update gcc
+RUN apk add --update redis
 
-## Available Scripts
+# Tell the image what to do when it starts as a container
+CMD ["redis-server"]
+-----------------------------------------------------------
 
-In the project directory, you can run:
 
-### `npm start`
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
+//run docker file
+docker build .
+-----------------------------------------------------------
+Sending build context to Docker daemon  2.048kB
+Step 1/4 : FROM alpine
+ ---> b2aa39c304c2
+Step 2/4 : RUN apk add --update gcc
+ ---> Using cache
+ ---> 5d0746c2a2d9
+Step 3/4 : RUN apk add --update redis
+ ---> Using cache
+ ---> f8526ffe911b
+Step 4/4 : CMD ["redis-server"]
+ ---> Using cache
+ ---> 6baa38be9c6f
+Successfully built 6baa38be9c6f
+-----------------------------------------------------------
+//run image 6baa38be9c6f with new container
+docker run <image_ID>
 
-The page will reload if you make edits.\
-You will also see any lint errors in the console.
+//posto je smaranje da kreiramo image sa random brojevima i slovimo,
+//mozemo da image-u damo ime 
+docker build -t milesoda/redis:latest .
 
-### `npm test`
+//run image with container
+docker run milesoda/redis
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
 
-### `npm run build`
+//////////////////////////////////ANOTHER WAY//////////////////////////////////////
+//create new blank container manualy
+docker run -it alpine sh
+# apk add --update redis
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+//open another cmd prompt and add CMD
+docker commit -c 'CMD ["redis-server"]' <container_id>
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+//now run container
+docker run <container_id>
+//////////////////////////////////////////////////////////////////////////////////////
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+//remove all containers
+docker rm -f $(docker ps -a -q)
 
-### `npm run eject`
 
-**Note: this is a one-way operation. Once you `eject`, you can’t go back!**
 
-If you aren’t satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+1. create nodejs server (test)
+2. create dockerfile
+	FROM node:19-alpine
+	WORKDIR /usr/app
+	COPY ./ ./
+	RUN npm install
+	CMD ["npm", "run", "dev"]
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you’re on your own.
+3. docker build -t milesoda/docker-test-01 .
+4. docker run -p 8080:8080 milesoda/docker-test-01
 
-You don’t have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn’t feel obligated to use this feature. However we understand that this tool wouldn’t be useful if you couldn’t customize it when you are ready for it.
+//Go to shell inside container
+docker run -it milesoda/docker-test-02 sh
+docker exec -it <container_id> sh
 
-## Learn More
+-----------------------------------------------------------
+//when we use Dockerfile.dev (in development mode)
+docker build -f Dockerfile.dev .
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+//create Dockerfile.dev in development mode
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+FROM node:19-alpine
+WORKDIR /app
+COPY ./package.json ./
+RUN npm install
+COPY ./ ./
+CMD ["npm", "start"]
+
+//ubuduce, umesto da kopiramo foldere iz projekta ui kontejner, koristicemo
+// reference projektnih foldera u kontejneru, npr:
+//UMESTO OVOGA
+-projekat			-container
+	/src		--------	/app/src
+	/public	--------	/app/public
+
+//PRAVIMO OVO
+-projekat			-container
+	/src		<--------	reference
+	/public	<--------	reference
+
+
+
+
+//docker volume
+ 
+
+//first make WSL integration in docker desktop if we wont use -v $(pwd):/app
+//za windows usere korsiti powershell, bash... i napisati ovako. I obavezno otici u root folder projekta
+//node_modules nemamo u projektu zato sto ce brze da radi build images. I zato sto u Dockerfile.dev imamo RUN npm install
+//ovde -v ${PWD}:/app znaci da sve van kontejnera, sa PWD-a (present working dir) mapiramo na /app unutar kontejnera. Tzv. mapping
+//ovde -v /app/node_modules  put a bookmark on the node_modules folder u kontejneru.
+//Dakle ovo se koristi kad nemamo node_models folder u projektu i kad ne zelimo da overwrite-ujemo node_moudles u kontejneru.
+//I bez ovoga ne radi, zato sto app ne moze da nadje skripte unutar node_modules
+docker run -it -p 3000:3000 -v /app/node_modules -v ${PWD}:/app milesoda/docker-frontend-02
+
+//Zato sto su ove CLI komande dugacke i komplikovane, najbolje je koristiti docker-compose
+
+//i ovo je bitno
+  "scripts": {
+    "start": "WATCHPACK_POLLING=true react-scripts start",
+  },
+
+/////////////////////////TESTOVI///////////////////////
+//output is STDOUT (samo output dobijamo)
+docker run milesoda/web npm run start
+
+//output is STDIN (Ovde dobijamo full overview i mozemo da koristimo komande)
+docker run -it milesoda/web npm run start
+
+//fix problem with axios. Add these lines in package.json
+  "jest": {
+    "transformIgnorePatterns": [
+      "node_modules/(?!axios)/"
+    ]
+  },
+
+///////////////////////////////NGINX//////////////////////////////////////
+//nginx is web server. We use nginx to create production version of our web container.
+
+//za build proces mi moramo da kreiramo Dockerfile ge cemo imati odvojena dva bloka. Jedan za build, drugi za Nginx. Ovako to izgleda
+
+# build phase
+FROM node:19-alpine as builder
+WORKDIR /app
+COPY ./package.json ./
+RUN npm install
+COPY ./ ./
+CMD ["npm", "run", "build"]
+
+# start phase
+FROM nginx
+#copy build to specific folder in container
+COPY --from=builder /app/build /usr/share/nginx/html
+
+docker build -t milesoda/build
+docker run -p 8080:80 milesoda/build
